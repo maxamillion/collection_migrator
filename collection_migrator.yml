@@ -1,0 +1,99 @@
+---
+- name: Ansible Core Collection Migrator
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cache_dir: '.collections_cache/'
+    version: '0.0.1'
+    authors:
+      - 'Ansible Migrator <migrator@ansible.example.com> (https://github.com/maxamillion/collection_migrator)'
+    plugin_types:
+      - 'action'
+      - 'become'
+      - 'cache'
+      - 'callback'
+      - 'connection'
+      - 'filter'
+      - 'httpapi'
+      - 'inventory'
+      - 'lookup'
+      - 'netconf'
+      - 'module_utils'
+      - 'modules'
+    module_utils_blacklist:
+      - '_text'
+      - 'basic'
+      - 'common.collections'
+      - 'common.dict_transformations'
+      - 'common.removed'
+      - 'common.text.formatters'
+      - 'config'
+      - 'legacy'
+      - 'parsing.convert_bool'
+      - 'six'
+      - 'six.moves'
+      - 'six.moves.http_client'
+      - 'six.moves.urllib'
+      - 'six.moves.urllib.error'
+      - 'six.moves.urllib.parse'
+      - 'facts'
+      - 'facts.timeout'
+      - 'urls'
+
+  tasks:
+    - name: Sanity Checks
+      block:
+        - name: ensure namespace has been defined
+          assert:
+            fail_msg: "The variable 'namespace' is not defined and is required"
+            that:
+              - namespace is defined
+
+        - name: ensure name has been defined
+          assert:
+            fail_msg: "The variable 'name' is not defined and is required"
+            that:
+              - name is defined
+
+        - name: set vars
+          set_fact:
+            collections_cache: '{{cache_dir}}/collections'
+            git_cache: '{{cache_dir}}/git_repos'
+
+    - name: Directory Structure Scaffolding
+      block:
+        - name: ensure base collection dir structure exists
+          file:
+            path: '{{collection_cache}}/{{namespace}}/{{name}}'
+            state: directory
+
+        - name: ensure collection docs dir exists
+          file:
+            path: '{{collection_cache}}/{{namespace}}/{{name}}/docs'
+            state: directory
+
+        - name: ensure collection plugins dirs exists
+          file:
+            path: '{{collection_cache}}/{{namespace}}/{{name}}/plugins/{{item}}'
+            state: directory
+          loop: "{{ plugin_types }}"
+
+        - name: ensure collection tests dir exists
+          file:
+            path: '{{collection_cache}}/{{namespace}}/{{name}}/tests'
+            state: directory
+
+    - name: Filter Candidate Content for Collection
+      block:
+        - name: Clone ansible/ansible
+          git:
+            repo: 'https://github.com/ansible/ansible'
+            dest: '{{git_cache}}/ansible'
+
+        - name: Find content for collection inclusion
+          find:
+            paths: '{{git_cache}}/ansible'
+            recurse: yes
+            patterns: '*{{name}}*.yml,*{{name}}*.py'
+          register: collecton_candidates
+
