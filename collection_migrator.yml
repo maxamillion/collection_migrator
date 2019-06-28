@@ -3,7 +3,7 @@
   hosts: localhost
   gather_facts: false
   vars:
-    cache_dir: '.collections_cache/'
+    cache_dir: '.collections_cache'
     version: '0.0.1'
     authors:
       - 'Ansible Migrator <migrator@ansible.example.com> (https://github.com/maxamillion/collection_migrator)'
@@ -12,14 +12,22 @@
       - 'become'
       - 'cache'
       - 'callback'
+      - 'cliconf'
       - 'connection'
+      - 'doc_fragments'
       - 'filter'
       - 'httpapi'
       - 'inventory'
       - 'lookup'
-      - 'netconf'
       - 'module_utils'
       - 'modules'
+      - 'netconf'
+      - 'process'
+      - 'shell'
+      - 'strategy'
+      - 'terminal'
+      - 'test'
+      - 'vars'
     module_utils_blacklist:
       - '_text'
       - 'basic'
@@ -45,15 +53,11 @@
       block:
         - name: ensure namespace has been defined
           assert:
-            fail_msg: "The variable 'namespace' is not defined and is required"
+            fail_msg: "The variables namespace, name, and filter must be defined."
             that:
               - namespace is defined
-
-        - name: ensure name has been defined
-          assert:
-            fail_msg: "The variable 'name' is not defined and is required"
-            that:
               - name is defined
+              - filter is defined
 
         - name: set vars
           set_fact:
@@ -64,23 +68,23 @@
       block:
         - name: ensure base collection dir structure exists
           file:
-            path: '{{collection_cache}}/{{namespace}}/{{name}}'
+            path: '{{collections_cache}}/{{namespace}}/{{name}}'
             state: directory
 
         - name: ensure collection docs dir exists
           file:
-            path: '{{collection_cache}}/{{namespace}}/{{name}}/docs'
+            path: '{{collections_cache}}/{{namespace}}/{{name}}/docs'
             state: directory
 
         - name: ensure collection plugins dirs exists
           file:
-            path: '{{collection_cache}}/{{namespace}}/{{name}}/plugins/{{item}}'
+            path: '{{collections_cache}}/{{namespace}}/{{name}}/plugins/{{item}}'
             state: directory
           loop: "{{ plugin_types }}"
 
         - name: ensure collection tests dir exists
           file:
-            path: '{{collection_cache}}/{{namespace}}/{{name}}/tests'
+            path: '{{collections_cache}}/{{namespace}}/{{name}}/tests'
             state: directory
 
     - name: Filter Candidate Content for Collection
@@ -92,8 +96,22 @@
 
         - name: Find content for collection inclusion
           find:
-            paths: '{{git_cache}}/ansible'
+            paths:
+              - '{{git_cache}}/ansible/lib'
+              - '{{git_cache}}/ansible/test'
+              - '{{git_cache}}/ansible/docs'
             recurse: yes
-            patterns: '*{{name}}*.yml,*{{name}}*.py'
-          register: collecton_candidates
+            patterns: '*{{filter}}*.yml,*{{filter}}*.py'
+          register: collection_candidates
+
+        - name: Grab path attribute
+          set_fact:
+            collection_candidate_paths: '{{collection_candidates["files"]|map(attribute="path")|list}}'
+
+    - name: Import Per Artifact Type Processing Task File
+      include_tasks: 'includes/artifact_type_processing.yml'
+      loop: "{{collection_candidate_paths}}"
+      loop_control:
+        loop_var: artifact
+
 
