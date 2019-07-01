@@ -101,7 +101,9 @@
               - '{{git_cache}}/ansible/test'
               - '{{git_cache}}/ansible/docs'
             recurse: yes
-            patterns: '*{{filter}}*.yml,*{{filter}}*.py'
+            #patterns: '*{{filter}}*.yml,*{{filter}}*.py'
+            patterns: '*{{filter}}*'
+            file_type: any
           register: collection_candidates
 
         - name: Grab path attribute

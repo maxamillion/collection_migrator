@@ -2,18 +2,24 @@
 
 #NOTE: Should be included by collection_migrator.yml, not used stand alone
 
-#- name: Copy plugin types
-#  copy:
-#    src: "{{artifact}}"
+- name: Move ansible/modules into Collection space
+  copy:
+    src: "{{artifact}}"
+    dest: "{{ artifact|regex_replace('^(' ~ git_cache ~ '/ansible/lib/ansible/modules/)(.*)/(?P<fname>.*)$', collections_cache ~ '/' ~ namespace ~ '/' ~ name ~ '/plugins/modules/\\g<fname>') }}"
+    remote_src: true
+  when: "'lib/ansible/modules' in artifact"
 
-- name: DEBUG ARTIFACT
-  debug:
-    var: artifact
-- name: debug testing
-  debug:
-    var: artifact|regex_replace('{{git_cache}}/ansible/lib/ansible','{{collections_cache}}/{{namespace}}/{{name}}/plugins')
-  when: "'lib/ansible' in artifact"
-- debug:
-    var: artifact|regex_replace('^({{git_cache}}/ansible/lib/ansible/plugins/)(.*)\/(?P<fname>.*)$','{{collections_cache}}/{{namespace}}/{{name}}/plugins/\g<fname>')
+- name: Move ansible/module_utils into Collection space
+  copy:
+    src: "{{artifact}}"
+    dest: "{{ artifact|regex_replace('^(' ~ git_cache ~ '/ansible/lib/ansible/module_utils/)(.*\/?)(?P<fname>.*)$', collections_cache ~ '/' ~ namespace ~ '/' ~ name ~ '/plugins/module_utils/\\g<fname>') }}"
+    remote_src: true
+  when: "'lib/ansible/module_utils' in artifact"
+
+- name: Move ansible/plugins into Collection space
+  copy:
+    src: "{{artifact}}"
+    dest: "{{ artifact|regex_replace('^(' ~ git_cache ~ '/ansible/lib/ansible/modules/)(.*)/(?P<plugin_type>.*)/(?P<fname>.*)$', collections_cache ~ '/' ~ namespace ~ '/' ~ name ~ '/plugins/modules/\\g<plugin_type>/\\g<fname>') }}"
+    remote_src: true
   when: "'lib/ansible/plugins' in artifact"
 
